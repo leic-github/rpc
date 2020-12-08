@@ -2,10 +2,8 @@ package org.gupao.client;
 
 import org.gupao.server.RpcRequest;
 
-import java.io.ObjectInputStream;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
-import java.net.Socket;
 
 /**
  * @Author: lei.chen@hcit.ai
@@ -25,6 +23,7 @@ public class RemoteInvocationHandler implements InvocationHandler {
         request.setClassName(method.getDeclaringClass().getName());
         request.setMethodName(method.getName());
         request.setParams(args);
+        request.setVersion("v2.0");
         return rpcNetTransport.send(request);
     }
 }

@@ -1,5 +1,7 @@
 package org.gupao.server;
 
+import org.springframework.util.StringUtils;
+
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
@@ -7,6 +9,7 @@ import java.io.ObjectOutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.Socket;
+import java.util.Map;
 
 /**
  * @Author: lei.chen@hcit.ai
@@ -15,11 +18,11 @@ import java.net.Socket;
  **/
 public class ProcessHandler implements Runnable {
     private Socket socket;
-    private Object service;
+    private Map<String,Object> handlerMap;
 
-    public ProcessHandler(Socket socket, Object service) {
+    public ProcessHandler(Socket socket, Map<String,Object> handlerMap) {
         this.socket = socket;
-        this.service = service;
+        this.handlerMap = handlerMap;
     }
 
     @Override
@@ -64,13 +67,21 @@ public class ProcessHandler implements Runnable {
 
     private Object invoke(RpcRequest request) throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         Object[] params = request.getParams();
+        String serviceName = request.getClassName();
+        if (!StringUtils.isEmpty(request.getVersion())) {
+            serviceName = serviceName + "-" + request.getVersion();
+        }
+        Object serviceBean = handlerMap.get(serviceName);
+        if (serviceBean == null) {
+            throw new RuntimeException("service not found " + serviceName);
+        }
         Class<?> cls = Class.forName(request.getClassName());
         Class<?>[] clsArray = new Class[params.length];
         for (int i = 0; i < params.length; i++) {
             clsArray[i] = params[i].getClass();
         }
         Method method = cls.getMethod(request.getMethodName(), clsArray);
-        Object result = method.invoke(service, params);
+        Object result = method.invoke(serviceBean, params);
         return result;
 
     }
