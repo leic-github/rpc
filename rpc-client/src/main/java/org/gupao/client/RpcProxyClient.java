@@ -10,6 +10,6 @@ import java.lang.reflect.Proxy;
 public class RpcProxyClient {
 
     public <T> T clientProxy(Class<?> cls, String host, int port) {
-        return (T)Proxy.newProxyInstance(cls.getClassLoader(), new Class<?>[]{cls}, new RemoteInvocationHandler(host, port));
+        return (T)Proxy.newProxyInstance(cls.getClassLoader(), new Class<?>[]{cls}, new RemoteInvocationHandler());
     }
 }

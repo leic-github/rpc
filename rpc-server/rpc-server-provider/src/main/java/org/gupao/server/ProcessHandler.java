@@ -1,68 +1,31 @@
 package org.gupao.server;
 
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import org.springframework.util.StringUtils;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.net.Socket;
 import java.util.Map;
 
-/**
- * @Author: lei.chen@hcit.ai
- * @Description:
- * @CreateTiem: 2020/12/7 20:53
- **/
-public class ProcessHandler implements Runnable {
-    private Socket socket;
-    private Map<String,Object> handlerMap;
+public class ProcessHandler extends ChannelInboundHandlerAdapter {
+    private Map<String, Object> handleMap;
 
-    public ProcessHandler(Socket socket, Map<String,Object> handlerMap) {
-        this.socket = socket;
-        this.handlerMap = handlerMap;
+    public ProcessHandler(Map<String, Object> HandleMap) {
+        this.handleMap = HandleMap;
     }
 
     @Override
-    public void run() {
-        ObjectInputStream objectInputStream = null;
-        ObjectOutputStream objectOutputStream = null;
-        try {
-            objectInputStream = new ObjectInputStream(socket.getInputStream());
-            RpcRequest request = (RpcRequest) objectInputStream.readObject();
-            Object result = invoke(request);
-            objectOutputStream = new ObjectOutputStream(socket.getOutputStream());
-            objectOutputStream.writeObject(result);
-            objectOutputStream.flush();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        } catch (NoSuchMethodException e) {
-            e.printStackTrace();
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        } catch (InvocationTargetException e) {
-            e.printStackTrace();
-        }finally {
-            if (objectInputStream != null) {
-                try {
-                    objectInputStream.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-            if (objectOutputStream != null) {
-                try {
-                    objectOutputStream.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        RpcRequest request = (RpcRequest) msg;
+        Object invoke = invoke(request);
+        ctx.writeAndFlush(invoke);
+    }
 
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        cause.printStackTrace();
+        ctx.close();
     }
 
     private Object invoke(RpcRequest request) throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
@@ -71,7 +34,7 @@ public class ProcessHandler implements Runnable {
         if (!StringUtils.isEmpty(request.getVersion())) {
             serviceName = serviceName + "-" + request.getVersion();
         }
-        Object serviceBean = handlerMap.get(serviceName);
+        Object serviceBean = handleMap.get(serviceName);
         if (serviceBean == null) {
             throw new RuntimeException("service not found " + serviceName);
         }
@@ -85,5 +48,4 @@ public class ProcessHandler implements Runnable {
         return result;
 
     }
-
 }

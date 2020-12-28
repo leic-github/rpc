@@ -14,7 +14,8 @@ import org.springframework.context.annotation.Configuration;
 public class SpringConfig {
 
     @Bean
-    public GpRpcServer getGpRpcServer(){
-        return new GpRpcServer(8080);
+    public GpRpcServer getGpRpcServer() {
+        String port = System.getProperty("server.port");
+        return new GpRpcServer(Integer.parseInt(port));
     }
 }

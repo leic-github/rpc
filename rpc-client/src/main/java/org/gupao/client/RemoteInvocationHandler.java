@@ -1,5 +1,7 @@
 package org.gupao.client;
 
+import org.gupao.client.discovery.ServiceDiscovery;
+import org.gupao.client.discovery.ServiceDiscoveryWithZk;
 import org.gupao.server.RpcRequest;
 
 import java.lang.reflect.InvocationHandler;
@@ -11,11 +13,8 @@ import java.lang.reflect.Method;
  * @CreateTiem: 2020/12/7 22:12
  **/
 public class RemoteInvocationHandler implements InvocationHandler {
-    private RpcNetTransport rpcNetTransport;
 
-    public RemoteInvocationHandler(String host, int port) {
-        this.rpcNetTransport = new RpcNetTransport(host, port);
-    }
+    private ServiceDiscovery serviceDiscovery = new ServiceDiscoveryWithZk();
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
@@ -23,7 +22,12 @@ public class RemoteInvocationHandler implements InvocationHandler {
         request.setClassName(method.getDeclaringClass().getName());
         request.setMethodName(method.getName());
         request.setParams(args);
-        request.setVersion("v2.0");
+        request.setVersion("v1.0");
+//        初始化输出层
+        String seviceNamePath = request.getClassName() + "-" + request.getVersion();
+        String addr = serviceDiscovery.discovery(seviceNamePath);
+        String[] split = addr.split(":");
+        RpcNetTransport rpcNetTransport = new RpcNetTransport(split[0], Integer.parseInt(split[1]));
         return rpcNetTransport.send(request);
     }
 }

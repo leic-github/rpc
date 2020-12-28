@@ -6,13 +6,13 @@ import org.gupao.server.User;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  * Hello world!
  */
 public class App {
-    public static void main(String[] args) {
-//        RpcProxyClient rpcProxyClient = new RpcProxyClient();
-//        IHelloService iHelloService = rpcProxyClient.clientProxy(IHelloService.class, "localhost", 8080);
+    public static void main(String[] args) throws InterruptedException {
         ApplicationContext applicationContext = new AnnotationConfigApplicationContext(SpringConfig.class);
         RpcProxyClient rpcProxyClient =  applicationContext.getBean(RpcProxyClient.class);
 
@@ -20,8 +20,10 @@ public class App {
         User user = new User();
         user.setAge(18);
         user.setUserName("Mic");
-//      String result = iHelloService.sayHello("mic");
-        String s = iHelloService.saveUser(user);
-        System.out.println(s);
+        for (int i = 0; i < 100; i++) {
+            TimeUnit.SECONDS.sleep(2);
+            String s = iHelloService.saveUser(user);
+            System.out.println(s);
+        }
     }
 }

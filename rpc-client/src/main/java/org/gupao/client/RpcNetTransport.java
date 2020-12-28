@@ -1,11 +1,14 @@
 package org.gupao.client;
 
+import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.*;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.serialization.ClassResolvers;
+import io.netty.handler.codec.serialization.ObjectDecoder;
+import io.netty.handler.codec.serialization.ObjectEncoder;
 import org.gupao.server.RpcRequest;
-
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.net.Socket;
 
 /**
  * @Author: lei.chen@hcit.ai
@@ -22,38 +25,34 @@ public class RpcNetTransport {
     }
 
     public Object send(RpcRequest request) {
-        ObjectInputStream objectInputStream = null;
-        ObjectOutputStream objectOutputStream = null;
+        EventLoopGroup workGroup = new NioEventLoopGroup(1);
         try {
-            Socket socket = new Socket(hostName, port);
-            objectOutputStream = new ObjectOutputStream(socket.getOutputStream());
-            objectOutputStream.writeObject(request);
-            objectOutputStream.flush();
-
-            objectInputStream = new ObjectInputStream(socket.getInputStream());
-            return objectInputStream.readObject();
-        } catch (IOException | ClassNotFoundException e) {
+            final ProcessHandler processHandler = new ProcessHandler();
+            Bootstrap bootstrap = new Bootstrap();
+            bootstrap.channel(NioSocketChannel.class)
+                    .group(workGroup)
+                    .option(ChannelOption.SO_KEEPALIVE, true)
+                    .handler(new ChannelInitializer<SocketChannel>() {
+                        @Override
+                        protected void initChannel(SocketChannel ch) throws Exception {
+                            ChannelPipeline pipeline = ch.pipeline();
+                            pipeline.addLast(new ObjectDecoder(ClassResolvers.cacheDisabled(null)));
+                            pipeline.addLast(new ObjectEncoder());
+                            pipeline.addLast(processHandler);
+                        }
+                    });
+            ChannelFuture channelFuture = bootstrap.connect(hostName, port).sync();
+            ChannelFuture future = channelFuture.channel().writeAndFlush(request);
+            future.channel().closeFuture().sync();
+            return processHandler.getRequest();
+        } catch (InterruptedException e) {
             e.printStackTrace();
         } finally {
-            if (objectInputStream != null) {
-                try {
-                    objectInputStream.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-
-            }
-            if (objectOutputStream != null) {
-                try {
-                    objectOutputStream.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-
-            }
-
+            workGroup.shutdownGracefully();
         }
         return null;
-
     }
 }
+
+
+
